@@ -1,0 +1,14 @@
+# Build artifacts
+/build/
+/cmake-build-debug/
+my-server
+*.o
+*.d
+*.cmake
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Docker
+docker-compose.override.yml

@@ -1,0 +1,29 @@
+services:
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BASE_IMAGE=ubuntu:22.04
+
+    volumes:
+      - .:/app
+
+    ports:
+      - "8000:8000"
+    
+    # tty: true   
+    # stdin_open: true
+
+    command: >
+      sh -c "
+      echo '>> [1/4] Ensuring build directory exists...' &&
+      mkdir -p build &&
+      cd build &&
+      echo '>> [2/4] Configuring CMake...' &&
+      cmake -DENABLE_CUDA=OFF .. &&
+      echo '>> [3/4] Compiling...' &&
+      make -j4 &&
+      echo '>> [4/4] Starting Server...' &&
+      ./my-server;
+      "
