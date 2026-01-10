@@ -20,7 +20,7 @@ echo "Changed to directory: $(pwd)"
 
 # Configure CMake with Coverage Enabled
 echo "Configuring CMake with Coverage..."
-cmake -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug /app
+cmake -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DLCOV_PATH=/usr/bin/lcov -DGENHTML_PATH=/usr/bin/genhtml /app
 
 # Build Tests
 echo "Building Tests..."

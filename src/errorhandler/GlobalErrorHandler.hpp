@@ -51,7 +51,9 @@ public:
         } catch (const std::exception& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 500;
-             errorDto->error = "Internal Server Error: " + oatpp::String(e.what());
+             // Log the actual error for internal debugging, but return a generic message to the client
+             // OATPP_LOGE("GlobalErrorHandler", "Internal Server Error: %s", e.what()); // Assuming a logging mechanism exists
+             errorDto->error = "Internal Server Error";
              return ResponseFactory::createResponse(Status::CODE_500, errorDto, m_objectMapper);
         } catch (...) {
              return handleError(Status::CODE_500, "Unknown Error", {});
