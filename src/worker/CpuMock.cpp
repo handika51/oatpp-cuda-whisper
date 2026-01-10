@@ -1,15 +1,19 @@
 #include "Bridge.hpp"
-#include <iostream>
-#include <thread> // Untuk simulasi delay
+#include "oatpp/core/base/Environment.hpp"
+#include <thread>
 #include <chrono>
 
+namespace app { namespace worker {
+
 void AudioWorker::computeMelSpectrogram(const std::vector<float>& inputAudio, std::vector<float>& outputMel) {    
-    std::cout << "[MOCK-CPU] Receiving Audio Data Size: " << inputAudio.size() << std::endl;
-    std::cout << "[MOCK-CPU] Simulating CUDA processing..." << std::endl;
+    OATPP_LOGD("AudioWorker", "[MOCK-CPU] Receiving Audio Data Size: %d", inputAudio.size());
+    OATPP_LOGD("AudioWorker", "[MOCK-CPU] Simulating CUDA processing...");
     
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     outputMel.assign(inputAudio.size() / 2, 0.5f); // Dummy result
 
-    std::cout << "[MOCK-CPU] Done! Result written to buffer." << std::endl;
+    OATPP_LOGI("AudioWorker", "[MOCK-CPU] Done! Result written to buffer.");
 }
+
+}}

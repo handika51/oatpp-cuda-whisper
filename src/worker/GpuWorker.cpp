@@ -1,6 +1,10 @@
 #include "Bridge.hpp"
-#include <iostream>
+#include "oatpp/core/base/Environment.hpp"
+
+namespace app { namespace worker {
 
 void AudioWorker::computeMelSpectrogram(const std::vector<float>& inputAudio, std::vector<float>& outputMel) {
-    std::cout << "[REAL-GPU] Launching CUDA Kernel..." << std::endl;
+    OATPP_LOGI("AudioWorker", "[REAL-GPU] Launching CUDA Kernel...");
 }
+
+}}

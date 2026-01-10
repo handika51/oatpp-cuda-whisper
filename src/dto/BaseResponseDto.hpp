@@ -5,6 +5,8 @@
 #include "oatpp/core/Types.hpp"
 #include <cstdio>
 
+namespace app { namespace dto {
+
 #include OATPP_CODEGEN_BEGIN(DTO)
 
 template<class T>
@@ -35,5 +37,7 @@ public:
 };
 
 #include OATPP_CODEGEN_END(DTO)
+
+}}
 
 #endif

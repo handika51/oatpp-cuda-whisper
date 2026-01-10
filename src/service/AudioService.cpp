@@ -2,6 +2,11 @@
 #include "exception/AppExceptions.hpp"
 #include <vector>
 
+namespace app { namespace service {
+
+using namespace app::worker;
+using namespace app::exception;
+
 AudioService::AudioService(const std::shared_ptr<AudioWorker>& audioWorker)
     : m_audioWorker(audioWorker)
 {}
@@ -14,3 +19,5 @@ oatpp::String AudioService::processAudio(const oatpp::String& message) {
     
     return message;
 }
+
+}}

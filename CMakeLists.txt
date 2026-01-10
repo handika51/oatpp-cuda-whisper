@@ -10,6 +10,7 @@ set(SOURCES
     src/App.cpp
     src/controller/MyController.hpp
     src/service/AudioService.cpp
+    src/AppConfig.hpp
 )
 
 if(ENABLE_CUDA)

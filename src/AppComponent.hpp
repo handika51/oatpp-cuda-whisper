@@ -12,6 +12,11 @@
 #include "errorhandler/GlobalErrorHandler.hpp"
 #include "AppConfig.hpp"
 
+namespace app {
+
+using namespace app::service;
+using namespace app::worker;
+
 class AppComponent {
 public: 
     
@@ -55,5 +60,7 @@ public:
     }());
     
 };
+
+}
 
 #endif /* AppComponent_hpp */
