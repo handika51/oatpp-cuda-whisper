@@ -31,6 +31,19 @@ target_link_libraries(my-server oatpp::oatpp)
 
 target_include_directories(my-server PUBLIC src)
 
+# Add security hardening flags for Release builds
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS ">> Adding security hardening flags for Release build")
+    target_compile_options(my-server PRIVATE
+        -fstack-protector-strong
+        -D_FORTIFY_SOURCE=2
+    )
+    target_link_options(my-server PRIVATE
+        -Wl,-z,relro
+        -Wl,-z,now
+    )
+endif()
+
 ##########################################################
 # Testing
 ##########################################################
@@ -61,7 +74,7 @@ if(ENABLE_COVERAGE)
         if(LCOV_PATH AND GENHTML_PATH)
             add_custom_target(coverage_report
                 COMMAND ${LCOV_PATH} --capture --directory . --output-file coverage.info
-                COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/test/*' '*/oatpp/*' --output-file coverage_filtered.info
+                COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/test/*' '*/oatpp/*' --output-file coverage_filtered.info --ignore-errors unused
                 COMMAND ${GENHTML_PATH} coverage_filtered.info --output-directory coverage_report
                 COMMAND echo "Coverage report generated in coverage_report/index.html"
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

@@ -9,7 +9,7 @@ This project is an Oat++ microservice designed to demonstrate speech-to-text fun
 
 ## Building and Running with Docker Compose
 
-The easiest way to get the application up and running is by using Docker Compose. This will build the Docker image and start the service, exposing it on port `8000`.
+The easiest way to get the application up and running is by using Docker Compose. This uses a secure **multi-stage Docker build** to compile the application and create a minimal runtime image.
 
 1.  **Build and Run:**
     ```bash
@@ -17,7 +17,7 @@ The easiest way to get the application up and running is by using Docker Compose
     ```
     The `-d` flag runs the services in the background.
 
-    > **Note on CUDA Support:** By default, the Docker configuration builds the CPU Mock version (`ENABLE_CUDA=OFF` in `docker-compose.yml`). To enable GPU support (CUDA), ensure you have the **NVIDIA Container Toolkit** installed and configured, then update the `command` in `docker-compose.yml` to use `cmake -DENABLE_CUDA=ON ..`.
+    > **Note on CUDA Support:** The Dockerfile automatically detects if `nvcc` is available in the build environment. If not found (default), it builds the **CPU Mock version**. To enable GPU support, you would need to use a base image with CUDA development tools in the `builder` stage of the `Dockerfile`.
 
 2.  **Check Logs (Optional):**
     To view the application logs:
@@ -96,21 +96,33 @@ curl http://localhost:8000/hello
 }
 ```
 
+## Security Features
+
+This project implements several security best practices to ensure robustness and safety:
+
+*   **Non-Root Execution:** The application runs as a dedicated non-root user (`appuser`) inside the container to minimize the impact of potential container escapes.
+*   **Multi-Stage Build:** The Docker image is built using a multi-stage process, ensuring that build tools and intermediate files are not present in the final runtime image, reducing the attack surface.
+*   **Input Validation:** Strict validation is enforced on API inputs, including checks for `Content-Type` and message length limits to prevent Denial of Service (DoS) attacks.
+*   **Secure Error Handling:** The application returns generic error messages to clients to prevent information leakage, while logging detailed exception information internally for debugging.
+*   **Compiler Hardening:** The build configuration includes security-hardening flags (e.g., `-fstack-protector-strong`, `_FORTIFY_SOURCE=2`) to protect against common binary exploitation techniques.
+
 ## Running Tests
 
 The project includes unit and integration tests covering the controller logic and API endpoints.
 
-### Using Docker (Recommended)
+### Running Tests with Docker
 
-Ensure the application is running:
-```bash
-docker compose up --build -d
-```
+To run tests in a Docker environment, you need to use the `builder` stage of the Docker image, which contains all the necessary build tools and the compiled test executable.
 
-Then execute the tests inside the container:
-```bash
-docker compose exec app ./build/my-tests
-```
+1.  **Build the `builder` image:**
+    ```bash
+    docker build --target builder -t oatpp-cuda-whisper-builder .
+    ```
+2.  **Run the tests:**
+    ```bash
+    docker run --rm oatpp-cuda-whisper-builder /app/build/my-tests
+    ```
+    This command creates a temporary container from the `builder` image, runs the `my-tests` executable, and then removes the container.
 
 ### Local Build
 
@@ -130,25 +142,24 @@ docker compose exec app ./build/my-tests
 
 To generate code coverage reports (using `gcov` and `lcov`), you can use the provided helper script.
 
-### Using Docker (Recommended)
+### Generating Coverage with Docker
 
-> **Important:** If you've modified `CMakeLists.txt` or `Dockerfile` (e.g., to enable coverage or install `lcov`), ensure you rebuild your Docker image first: `docker compose up --build -d`.
+Similar to running tests, generating coverage reports requires the `builder` image.
 
-1.  **Ensure the container is running with the latest build:**
+1.  **Ensure the `builder` image is built:**
     ```bash
-    docker compose up --build -d
+    docker build --target builder -t oatpp-cuda-whisper-builder .
     ```
-
-2.  **Run the coverage script inside the container:**
+2.  **Run the coverage script within a temporary container:**
     ```bash
-    docker compose exec app sh run_tests_with_coverage.sh clean
+    docker run --rm -v $(pwd):/app oatpp-cuda-whisper-builder sh -c "cd /app && chmod +x run_tests_with_coverage.sh && ./run_tests_with_coverage.sh clean"
     ```
-
-3.  **Copy the report to host (optional):**
-    ```bash
-    docker cp $(docker compose ps -q app):/app/build_coverage/coverage_report ./coverage_report
-    ```
-    This will copy the HTML report to a new `coverage_report` directory in your project's root on the host. Open `coverage_report/index.html` in your browser to view the results.
+    This command will:
+    *   Mount your local project directory into `/app` inside the container.
+    *   Change into the mounted directory.
+    *   Make the `run_tests_with_coverage.sh` script executable.
+    *   Execute the script.
+    The coverage report will be generated in your local `build_coverage/coverage_report` directory.
 
 ### Local Environment
 
@@ -185,6 +196,6 @@ The project follows a modular Clean Architecture approach:
     *   `MyControllerTest.cpp`: Integration tests for API endpoints.
     *   `tests.cpp`: Test runner entry point.
     *   `TestAppComponent.hpp`: Test-specific DI container.
-*   `Dockerfile`: Docker build definition.
+*   `Dockerfile`: Docker build definition (Multi-stage).
 *   `docker-compose.yml`: Container orchestration config.
 *   `CMakeLists.txt`: Build configuration.

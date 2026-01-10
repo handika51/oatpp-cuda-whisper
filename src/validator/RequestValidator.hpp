@@ -12,10 +12,11 @@ using namespace app::exception;
 
 class RequestValidator {
 public:
-    
+    static const v_int32 MAX_MESSAGE_LENGTH = 1024; // Define a reasonable max length
+
     static void assertContentType(const std::shared_ptr<oatpp::web::protocol::http::incoming::Request>& request, const char* expectedType) {
         auto contentType = request->getHeader("Content-Type");
-        if (!contentType || std::string(contentType->c_str()).find(expectedType) == std::string::npos) {
+        if (!contentType || *contentType != expectedType) { // Stricter check
             throw ValidationException("Unsupported Media Type");
         }
     }
@@ -35,6 +36,9 @@ public:
     static void validateProcessRequest(const oatpp::Object<ProcessRequestDto>& dto) {
         if (!dto || !dto->message || dto->message->size() == 0) {
             throw ValidationException("Message cannot be empty");
+        }
+        if (dto->message->size() > MAX_MESSAGE_LENGTH) { // Enforce max length
+            throw ValidationException("Message too long");
         }
     }
 };
