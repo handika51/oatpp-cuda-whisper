@@ -5,6 +5,8 @@ my-server
 *.o
 *.d
 *.cmake
+/build_coverage/
+/coverage_report/ # For when copied to host
 
 # IDE-specific files
 .vscode/
@@ -12,3 +14,4 @@ my-server
 
 # Docker
 docker-compose.override.yml
+.DS_Store

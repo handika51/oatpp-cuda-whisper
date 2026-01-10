@@ -9,13 +9,15 @@ RUN apt-get update && apt-get install -y \
     git \
     wget \
     pkg-config \
+    lcov \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN git clone --branch 1.3.0-latest https://github.com/oatpp/oatpp.git \
+ARG OATPP_VERSION=1.3.0-latest
+RUN git clone --branch ${OATPP_VERSION} https://github.com/oatpp/oatpp.git \
     && cd oatpp \
     && mkdir build && cd build \
-    && cmake -DCMAKE_BUILD_TYPE=Release -DOATPP_INSTALL_BUILD=ON .. \
+    && cmake -DCMAKE_BUILD_TYPE=Release -DOATPP_INSTALL=ON .. \
     && make install
 
 WORKDIR /app

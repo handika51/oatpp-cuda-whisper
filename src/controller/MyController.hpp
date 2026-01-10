@@ -33,35 +33,47 @@ public:
         : oatpp::web::server::api::ApiController(objectMapper)
         , m_audioService(audioService) 
     {}
+
 public:
-    ENDPOINT("GET", "/hello", hello) {
+    ENDPOINT_ASYNC("GET", "/hello", Hello) {
+        ENDPOINT_ASYNC_INIT(Hello)
+        
+        Action act() override {
+            ExecutionTimer timer;
+            auto result = MessageDto::createShared();
+            result->status_code = 200;
+            result->message = "Hello, World!";
+            
+            auto response = BaseResponseDto<oatpp::Object<MessageDto>>::createSuccess(result, "success", timer.getElapsedMicros());
+            return _return(controller->createDtoResponse(Status::CODE_200, response));
+        }
+    };
+
+    ENDPOINT_ASYNC("POST", "/process", ProcessMessage) {
+        ENDPOINT_ASYNC_INIT(ProcessMessage)
+        
         ExecutionTimer timer;
-        
-        auto result = MessageDto::createShared();
-        result->status_code = 200;
-        result->message = "Hello, World!";
-        
-        auto response = BaseResponseDto<oatpp::Object<MessageDto>>::createSuccess(result, "success", timer.getElapsedMicros());
-        return createDtoResponse(Status::CODE_200, response);
-    }
-    ENDPOINT("POST", "/process", processMessage, 
-             REQUEST(std::shared_ptr<IncomingRequest>, request)) {
-        ExecutionTimer timer;
-        
-        RequestValidator::assertContentType(request, "application/json");
 
-        auto requestDto = RequestValidator::parseBody<ProcessRequestDto>(request, getDefaultObjectMapper());
+        Action act() override {
+            RequestValidator::assertContentType(request, "application/json");
+            return request->readBodyToDtoAsync<oatpp::Object<ProcessRequestDto>>(
+                controller->getDefaultObjectMapper()
+            ).callbackTo(&ProcessMessage::onBodyRead);
+        }
 
-        RequestValidator::validateProcessRequest(requestDto);
-        
-        auto resultMessage = m_audioService->processAudio(requestDto->message);
+        Action onBodyRead(const oatpp::Object<ProcessRequestDto>& requestDto) {
+            auto myController = static_cast<MyController*>(controller);
+            RequestValidator::validateProcessRequest(requestDto);
+            
+            auto resultMessage = myController->m_audioService->processAudio(requestDto->message);
 
-        auto resultPayload = ProcessResult::createShared();
-        resultPayload->transcript = resultMessage;
+            auto resultPayload = ProcessResult::createShared();
+            resultPayload->transcript = resultMessage;
 
-        auto response = BaseResponseDto<oatpp::Object<ProcessResult>>::createSuccess(resultPayload, "success", timer.getElapsedMicros());
-        return createDtoResponse(Status::CODE_200, response);
-    }
+            auto response = BaseResponseDto<oatpp::Object<ProcessResult>>::createSuccess(resultPayload, "success", timer.getElapsedMicros());
+            return _return(controller->createDtoResponse(Status::CODE_200, response));
+        }
+    };
 };
 
 #include OATPP_CODEGEN_END(ApiController)
