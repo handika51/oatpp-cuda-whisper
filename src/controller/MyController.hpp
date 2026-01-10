@@ -1,73 +1,59 @@
 #ifndef MyController_hpp
 #define MyController_hpp
 
-#include "dto/DTOs.hpp"
+#include "dto/MessageDto.hpp"
+#include "dto/ProcessDto.hpp"
+#include "dto/ErrorDto.hpp"
+#include "dto/BaseResponseDto.hpp"
 
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "oatpp/core/macro/component.hpp"
 #include "oatpp/core/macro/codegen.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
-#include "worker/Bridge.hpp"
+#include "service/AudioService.hpp"
+#include "validator/RequestValidator.hpp"
+#include "utils/ExecutionTimer.hpp"
 
 #include OATPP_CODEGEN_BEGIN(ApiController)
 
 class MyController : public oatpp::web::server::api::ApiController {
+private:
+    std::shared_ptr<AudioService> m_audioService;
+
 public:
-    MyController(OATPP_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, objectMapper))
-        : oatpp::web::server::api::ApiController(objectMapper) {}
+    MyController(OATPP_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, objectMapper),
+                 OATPP_COMPONENT(std::shared_ptr<AudioService>, audioService))
+        : oatpp::web::server::api::ApiController(objectMapper)
+        , m_audioService(audioService) 
+    {}
 public:
     ENDPOINT("GET", "/hello", hello) {
-        auto dto = MessageDto::createShared();
-        dto->status_code = 200;
-        dto->message = "Hello, World!";
-        return createDtoResponse(Status::CODE_200, dto);
+        ExecutionTimer timer;
+        
+        auto result = MessageDto::createShared();
+        result->status_code = 200;
+        result->message = "Hello, World!";
+        
+        auto response = BaseResponseDto<oatpp::Object<MessageDto>>::createSuccess(result, "success", timer.getElapsedMicros());
+        return createDtoResponse(Status::CODE_200, response);
     }
     ENDPOINT("POST", "/process", processMessage, 
              REQUEST(std::shared_ptr<IncomingRequest>, request)) {
-        auto contentType = request->getHeader("Content-Type");
-        if (!contentType || std::string(contentType->c_str()).find("application/json") == std::string::npos) {
-            auto errorDto = ErrorResponseDto::createShared();
-            errorDto->status_code = 415;
-            errorDto->error = "Unsupported Media Type";
-            return createDtoResponse(Status::CODE_415, errorDto);
-        }
-
-        auto bodyString = request->readBodyToString();
-        if(!bodyString || bodyString->size() == 0) {
-            auto errorDto = ErrorResponseDto::createShared();
-            errorDto->status_code = 400;
-            errorDto->error = "Empty Request Body";
-            return createDtoResponse(Status::CODE_400, errorDto);
-        }
-
-        oatpp::Object<ProcessRequestDto> requestDto;
-        try {
-            auto jsonMapper = oatpp::parser::json::mapping::ObjectMapper::createShared();
-            requestDto = jsonMapper->readFromString<oatpp::Object<ProcessRequestDto>>(bodyString);
-        } catch (const std::exception& e) {
-            auto errorDto = ErrorResponseDto::createShared();
-            errorDto->status_code = 400;
-            errorDto->error = "Invalid Request Body Format";
-            return createDtoResponse(Status::CODE_400, errorDto);
-        }
-        if (!requestDto->message) {
-            auto errorDto = ErrorResponseDto::createShared();
-            errorDto->status_code = 400;
-            errorDto->error = "Invalid Request Body";
-            return createDtoResponse(Status::CODE_400, errorDto);
-        }
-        if (requestDto->message->size() == 0){
-            auto errorDto = ErrorResponseDto::createShared();
-            errorDto->status_code = 400;
-            errorDto->error = "Message cannot be empty";
-            return createDtoResponse(Status::CODE_400, errorDto);
-        }
+        ExecutionTimer timer;
         
-        auto responseDto = ProcessResponseDto::createShared();
-        responseDto->status_code = 200;
-        responseDto->message = "Success";
-        responseDto->result = requestDto->message;
-        return createDtoResponse(Status::CODE_200, responseDto);
+        RequestValidator::assertContentType(request, "application/json");
+
+        auto requestDto = RequestValidator::parseBody<ProcessRequestDto>(request, getDefaultObjectMapper());
+
+        RequestValidator::validateProcessRequest(requestDto);
+        
+        auto resultMessage = m_audioService->processAudio(requestDto->message);
+
+        auto resultPayload = ProcessResult::createShared();
+        resultPayload->transcript = resultMessage;
+
+        auto response = BaseResponseDto<oatpp::Object<ProcessResult>>::createSuccess(resultPayload, "success", timer.getElapsedMicros());
+        return createDtoResponse(Status::CODE_200, response);
     }
 };
 

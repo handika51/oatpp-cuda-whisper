@@ -3,7 +3,7 @@
 #include <thread> // Untuk simulasi delay
 #include <chrono>
 
-void computeMelSpectrogram(const std::vector<float>& inputAudio, std::vector<float>& outputMel) {    
+void AudioWorker::computeMelSpectrogram(const std::vector<float>& inputAudio, std::vector<float>& outputMel) {    
     std::cout << "[MOCK-CPU] Receiving Audio Data Size: " << inputAudio.size() << std::endl;
     std::cout << "[MOCK-CPU] Simulating CUDA processing..." << std::endl;
     

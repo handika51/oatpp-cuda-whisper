@@ -9,6 +9,7 @@ find_package(oatpp REQUIRED)
 set(SOURCES
     src/App.cpp
     src/controller/MyController.hpp
+    src/service/AudioService.cpp
 )
 
 if(ENABLE_CUDA)
