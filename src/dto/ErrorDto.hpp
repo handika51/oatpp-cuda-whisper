@@ -4,6 +4,8 @@
 #include "oatpp/core/macro/codegen.hpp"
 #include "oatpp/core/Types.hpp"
 
+namespace app { namespace dto {
+
 #include OATPP_CODEGEN_BEGIN(DTO)
 
 class ErrorResponseDto : public oatpp::DTO {
@@ -13,5 +15,7 @@ class ErrorResponseDto : public oatpp::DTO {
 };
 
 #include OATPP_CODEGEN_END(DTO)
+
+}}
 
 #endif

@@ -3,6 +3,8 @@
 
 #include <chrono>
 
+namespace app { namespace utils {
+
 class ExecutionTimer {
 private:
     std::chrono::high_resolution_clock::time_point m_start;
@@ -16,5 +18,7 @@ public:
         return std::chrono::duration_cast<std::chrono::microseconds>(end - m_start).count();
     }
 };
+
+}}
 
 #endif

@@ -8,6 +8,17 @@
 #include "oatpp/web/protocol/http/outgoing/ResponseFactory.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
 
+namespace app {
+
+using namespace app::dto;
+using namespace app::exception;
+
+// Typedefs untuk memudahkan akses tipe Oat++
+using Status = oatpp::web::protocol::http::Status;
+using OutgoingResponse = oatpp::web::protocol::http::outgoing::Response;
+using ResponseFactory = oatpp::web::protocol::http::outgoing::ResponseFactory;
+using Headers = oatpp::web::protocol::http::Headers;
+
 class GlobalErrorHandler : public oatpp::web::server::handler::ErrorHandler {
 private:
     std::shared_ptr<oatpp::data::mapping::ObjectMapper> m_objectMapper;
@@ -32,6 +43,11 @@ public:
              errorDto->status_code = 500;
              errorDto->error = "Audio Processing Error: " + oatpp::String(e.what());
              return ResponseFactory::createResponse(Status::CODE_500, errorDto, m_objectMapper);
+        } catch (const ValidationException& e) {
+             auto errorDto = ErrorResponseDto::createShared();
+             errorDto->status_code = 400;
+             errorDto->error = "Validation Error: " + oatpp::String(e.what());
+             return ResponseFactory::createResponse(Status::CODE_400, errorDto, m_objectMapper);
         } catch (const std::exception& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 500;
@@ -43,5 +59,7 @@ public:
         return nullptr;
     }
 };
+
+}
 
 #endif /* GlobalErrorHandler_hpp */

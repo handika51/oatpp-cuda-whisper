@@ -3,6 +3,8 @@
 #include "oatpp/core/macro/codegen.hpp"
 #include "controller/MyController.hpp"
 
+using namespace app;
+using namespace app::controller;
 
 void run() {
     AppComponent components;

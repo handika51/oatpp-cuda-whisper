@@ -14,6 +14,13 @@
 #include "validator/RequestValidator.hpp"
 #include "utils/ExecutionTimer.hpp"
 
+namespace app { namespace controller {
+
+using namespace app::dto;
+using namespace app::service;
+using namespace app::validator;
+using namespace app::utils;
+
 #include OATPP_CODEGEN_BEGIN(ApiController)
 
 class MyController : public oatpp::web::server::api::ApiController {
@@ -58,5 +65,7 @@ public:
 };
 
 #include OATPP_CODEGEN_END(ApiController)
+
+}}
 
 #endif /* MyController_hpp */

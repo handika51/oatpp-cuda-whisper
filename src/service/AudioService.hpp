@@ -5,6 +5,10 @@
 #include "oatpp/core/Types.hpp"
 #include <memory>
 
+namespace app { namespace service {
+
+using namespace app::worker;
+
 class AudioService {
 private:
     std::shared_ptr<AudioWorker> m_audioWorker;
@@ -13,5 +17,7 @@ public:
     
     oatpp::String processAudio(const oatpp::String& message);
 };
+
+}}
 
 #endif
