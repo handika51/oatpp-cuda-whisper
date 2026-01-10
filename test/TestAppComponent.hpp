@@ -1,5 +1,5 @@
-#ifndef AppComponent_hpp
-#define AppComponent_hpp
+#ifndef TestAppComponent_hpp
+#define TestAppComponent_hpp
 
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
 #include "oatpp/web/server/AsyncHttpConnectionHandler.hpp"
@@ -14,12 +14,12 @@
 #include "errorhandler/GlobalErrorHandler.hpp"
 #include "AppConfig.hpp"
 
-namespace app {
+namespace app { namespace test {
 
 using namespace app::service;
 using namespace app::worker;
 
-class AppComponent {
+class TestAppComponent {
 public: 
     
     OATPP_CREATE_COMPONENT(std::shared_ptr<AppConfig>, appConfig)([] {
@@ -38,10 +38,7 @@ public:
         return oatpp::parser::json::mapping::ObjectMapper::createShared();
     }());
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ServerConnectionProvider>, serverConnectionProvider)([] {
-        OATPP_COMPONENT(std::shared_ptr<AppConfig>, config);
-        return oatpp::network::tcp::server::ConnectionProvider::createShared({config->host, config->port, oatpp::network::Address::IP_4});
-    }());
+    // OMITTED: serverConnectionProvider to avoid binding to port 8000 during tests
 
     OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>,httpRouter)([] {
         return oatpp::web::server::HttpRouter::createShared();
@@ -72,6 +69,6 @@ public:
     
 };
 
-}
+}}
 
-#endif /* AppComponent_hpp */
+#endif /* TestAppComponent_hpp */

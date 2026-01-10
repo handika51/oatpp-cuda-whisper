@@ -1,0 +1,121 @@
+#include "MyControllerTest.hpp"
+#include "app/TestClient.hpp"
+#include "TestAppComponent.hpp"
+#include "controller/MyController.hpp"
+#include "oatpp/web/server/HttpRouter.hpp"
+#include "oatpp/network/virtual_/client/ConnectionProvider.hpp"
+#include "oatpp/network/virtual_/server/ConnectionProvider.hpp"
+#include "oatpp/network/virtual_/Interface.hpp"
+#include "oatpp/web/client/HttpRequestExecutor.hpp"
+#include "oatpp/network/Server.hpp"
+#include <thread>
+#include <iostream>
+
+namespace app { namespace test {
+
+struct ServerThreadGuard {
+    oatpp::network::Server* server;
+    std::shared_ptr<oatpp::network::virtual_::server::ConnectionProvider> serverConnectionProvider;
+    std::shared_ptr<oatpp::network::virtual_::client::ConnectionProvider> clientConnectionProvider;
+    std::thread thread;
+
+    ServerThreadGuard(oatpp::network::Server* s, 
+                      const std::shared_ptr<oatpp::network::virtual_::server::ConnectionProvider>& scp,
+                      const std::shared_ptr<oatpp::network::virtual_::client::ConnectionProvider>& ccp) 
+        : server(s), serverConnectionProvider(scp), clientConnectionProvider(ccp)
+    {
+        thread = std::thread([this]{
+            try {
+                server->run();
+            } catch (const std::exception& e) {
+                OATPP_LOGE("ServerThread", "Error: %s", e.what());
+            } catch (...) {
+                OATPP_LOGE("ServerThread", "Unknown Error");
+            }
+        });
+    }
+
+    ~ServerThreadGuard() {
+        OATPP_LOGD("ServerThreadGuard", "Destructor called. Stopping components...");
+        if(server) {
+            OATPP_LOGD("ServerThreadGuard", "Stopping server...");
+            server->stop();
+        }
+        if(serverConnectionProvider) {
+            OATPP_LOGD("ServerThreadGuard", "Stopping server provider...");
+            serverConnectionProvider->stop();
+        }
+        if(clientConnectionProvider) {
+            OATPP_LOGD("ServerThreadGuard", "Stopping client provider...");
+            clientConnectionProvider->stop();
+        }
+        if(thread.joinable()) {
+            OATPP_LOGD("ServerThreadGuard", "Joining thread...");
+            thread.join();
+            OATPP_LOGD("ServerThreadGuard", "Thread joined.");
+        }
+    }
+};
+
+void MyControllerTest::onRun() {
+    
+    // 1. Initialize Components
+    TestAppComponent component; 
+    
+    // 2. Create Virtual Interface
+    auto interface = oatpp::network::virtual_::Interface::obtainShared("virtual-test-interface");
+
+    // 3. Override Connection Provider for Virtual Interface
+    auto connectionProvider = oatpp::network::virtual_::server::ConnectionProvider::createShared(interface);
+    
+    // Get Router & Handler from component
+    OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
+    OATPP_COMPONENT(std::shared_ptr<oatpp::network::ConnectionHandler>, connectionHandler);
+    
+    auto myController = std::make_shared<app::controller::MyController>();
+    router->addController(myController);
+
+    // 4. Create Server
+    oatpp::network::Server server(connectionProvider, connectionHandler);
+    
+    // 5. Create Client
+    auto clientConnectionProvider = oatpp::network::virtual_::client::ConnectionProvider::createShared(interface);
+    
+    // RAII Guard to ensure server stops and thread joins
+    ServerThreadGuard serverGuard(&server, connectionProvider, clientConnectionProvider);
+    
+    auto requestExecutor = oatpp::web::client::HttpRequestExecutor::createShared(clientConnectionProvider);
+    auto client = TestClient::createShared(requestExecutor, component.apiObjectMapper.getObject());
+    
+    // 6. Execute Tests
+    
+    // /hello
+    auto response = client->doHello();
+    OATPP_ASSERT(response->getStatusCode() == 200);
+    auto message = response->template readBodyToDto<oatpp::Object<app::dto::BaseResponseDto<oatpp::Object<app::dto::MessageDto>>>>(component.apiObjectMapper.getObject());
+    OATPP_ASSERT(message);
+    OATPP_ASSERT(message->code == 200);
+    OATPP_ASSERT(message->result->message == "Hello, World!");
+
+    // /process
+    auto reqDto = app::dto::ProcessRequestDto::createShared();
+    reqDto->message = "Test Audio Data";
+    auto responseProcess = client->doProcess(reqDto);
+    OATPP_ASSERT(responseProcess->getStatusCode() == 200);
+    auto processResult = responseProcess->template readBodyToDto<oatpp::Object<app::dto::BaseResponseDto<oatpp::Object<app::dto::ProcessResult>>>>(component.apiObjectMapper.getObject());
+    OATPP_ASSERT(processResult);
+    OATPP_ASSERT(processResult->is_success);
+    OATPP_ASSERT(processResult->result->transcript == "Test Audio Data"); // Mock echoes the message
+
+    // 7. Cleanup
+    
+    // Allow threads to finish a bit gracefully (optional)
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    OATPP_LOGD("MyControllerTest", "Tests finished. Explicitly stopping executor...");
+    component.executor.getObject()->stop();
+    component.executor.getObject()->join();
+    OATPP_LOGD("MyControllerTest", "Executor stopped. Exiting onRun...");
+}
+
+}}
