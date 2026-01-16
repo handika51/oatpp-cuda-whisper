@@ -20,7 +20,7 @@ set(SOURCES
 if(ENABLE_CUDA)
     message(STATUS ">> BUILD MODE: GPU/CUDA (Production)")
     enable_language(CUDA)
-    find_package(CUDA REQUIRED)
+    find_package(CUDAToolkit REQUIRED) # Use CUDAToolkit for modern CMake
     list(APPEND SOURCES src/worker/GpuWorker.cu)
     set(WORKER_SRC src/worker/GpuWorker.cu)
 else()
@@ -31,6 +31,10 @@ endif()
 
 add_executable(my-server ${SOURCES})
 target_link_libraries(my-server oatpp::oatpp)
+
+if(ENABLE_CUDA)
+    target_link_libraries(my-server CUDA::cufft)
+endif()
 
 target_include_directories(my-server PUBLIC src)
 
@@ -64,6 +68,11 @@ add_executable(my-tests
 )
 
 target_link_libraries(my-tests oatpp::oatpp oatpp::oatpp-test)
+
+if(ENABLE_CUDA)
+    target_link_libraries(my-tests CUDA::cufft)
+endif()
+
 target_include_directories(my-tests PUBLIC src test)
 
 if(ENABLE_COVERAGE)

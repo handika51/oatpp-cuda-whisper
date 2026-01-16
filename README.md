@@ -40,6 +40,19 @@ The easiest way to get the application up and running is by using Docker Compose
     docker compose down
     ```
 
+## CUDA Kernel Implementation
+
+The GPU worker (`src/worker/GpuWorker.cu`) implements a high-performance audio preprocessing pipeline optimized for Whisper.
+
+*   **Pipeline:** Raw Audio -> Windowing -> FFT (R2C) -> Magnitude Squared -> Mel Filterbank -> Log10 -> Output.
+*   **Optimization:**
+    *   **Lazy Initialization:** Mel filterbank weights and Hann window are precomputed and uploaded to the GPU only once.
+    *   **cuFFT:** Uses the optimized `cuFFT` library for batched Fast Fourier Transforms (R2C).
+    *   **Custom Kernels:** 
+        *   `applyWindowKernel`: Efficiently slices input audio into overlapping frames and applies the Hann window in parallel.
+        *   `magnitudeAndMelKernel`: Fuses magnitude calculation, matrix multiplication (Mel filterbank application), and log scaling into a single kernel to minimize memory bandwidth usage.
+    *   **Memory Management:** Reuses device buffers to avoid allocation overhead during streaming.
+
 ## API Endpoints
 
 The application exposes REST API endpoints. All successful responses follow a standardized JSON wrapper format.
@@ -226,7 +239,7 @@ The project follows a modular Clean Architecture approach:
     *   `IPC.hpp`: Shared memory and semaphore wrapper.
     *   `SharedMemoryStructs.hpp`: Definition of Ring Buffers and Task Slots.
     *   `CpuMock.cpp`: Mock implementation for development.
-    *   `GpuWorker.cpp`: CUDA implementation for production.
+    *   `GpuWorker.cu`: CUDA implementation for production.
 *   `src/validator/`: Input validation helpers.
 *   `src/errorhandler/`: Centralized HTTP error handling.
 *   `src/exception/`: Custom application exceptions.
