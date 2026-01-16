@@ -3,6 +3,7 @@
 #include <iostream>
 
 void runTests() {
+    // MyControllerTest removed as per request
     OATPP_RUN_TEST(app::test::AudioServiceTest);
     OATPP_RUN_TEST(app::test::errorhandler::GlobalErrorHandlerTest);
 }

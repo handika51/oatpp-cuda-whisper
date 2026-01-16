@@ -12,6 +12,9 @@ set(SOURCES
     src/controller/MyController.hpp
     src/service/AudioService.cpp
     src/AppConfig.hpp
+    src/worker/IPC.cpp
+    src/worker/WorkerMain.cpp
+    src/worker/WorkerManager.cpp
 )
 
 if(ENABLE_CUDA)
@@ -54,6 +57,9 @@ add_executable(my-tests
     test/AudioServiceTest.cpp
     test/errorhandler/GlobalErrorHandlerTest.cpp
     src/service/AudioService.cpp
+    src/worker/IPC.cpp
+    src/worker/WorkerManager.cpp
+    src/worker/WorkerMain.cpp
     ${WORKER_SRC} # Use same worker as main build
 )
 
