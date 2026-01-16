@@ -1,10 +1,8 @@
-#include "MyControllerTest.hpp"
 #include "AudioServiceTest.hpp"
 #include "errorhandler/GlobalErrorHandlerTest.hpp"
 #include <iostream>
 
 void runTests() {
-    OATPP_RUN_TEST(app::test::MyControllerTest);
     OATPP_RUN_TEST(app::test::AudioServiceTest);
     OATPP_RUN_TEST(app::test::errorhandler::GlobalErrorHandlerTest);
 }

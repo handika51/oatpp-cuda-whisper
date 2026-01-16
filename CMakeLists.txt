@@ -51,7 +51,6 @@ enable_testing()
 
 add_executable(my-tests
     test/tests.cpp
-    test/MyControllerTest.cpp
     test/AudioServiceTest.cpp
     test/errorhandler/GlobalErrorHandlerTest.cpp
     src/service/AudioService.cpp

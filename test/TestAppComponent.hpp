@@ -21,51 +21,39 @@ using namespace app::worker;
 
 class TestAppComponent {
 public: 
-    
-    OATPP_CREATE_COMPONENT(std::shared_ptr<AppConfig>, appConfig)([] {
-        return std::make_shared<AppConfig>();
-    }());
+    std::shared_ptr<AppConfig> appConfig;
+    std::shared_ptr<oatpp::async::Executor> executor;
+    std::shared_ptr<oatpp::data::mapping::ObjectMapper> apiObjectMapper;
+    std::shared_ptr<oatpp::web::server::HttpRouter> httpRouter;
+    std::shared_ptr<oatpp::web::server::handler::ErrorHandler> errorHandler;
+    std::shared_ptr<oatpp::network::ConnectionHandler> serverConnectionHandler;
+    std::shared_ptr<AudioWorker> audioWorker;
+    std::shared_ptr<AudioService> audioService;
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::async::Executor>, executor)([] {
-        return std::make_shared<oatpp::async::Executor>(
+public:
+    TestAppComponent() {
+        appConfig = std::make_shared<AppConfig>();
+
+        executor = std::make_shared<oatpp::async::Executor>(
             4, /* Data-Processing threads */
             1, /* I/O threads */
             1  /* Timer threads */
         );
-    }());
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, apiObjectMapper)([] {
-        return oatpp::parser::json::mapping::ObjectMapper::createShared();
-    }());
+        apiObjectMapper = oatpp::parser::json::mapping::ObjectMapper::createShared();
+        
+        httpRouter = oatpp::web::server::HttpRouter::createShared();
 
-    // OMITTED: serverConnectionProvider to avoid binding to port 8000 during tests
+        errorHandler = std::make_shared<GlobalErrorHandler>(apiObjectMapper);
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>,httpRouter)([] {
-        return oatpp::web::server::HttpRouter::createShared();
-    }());
-
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::web::server::handler::ErrorHandler>, errorHandler)([] {
-        OATPP_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, objectMapper);
-        return std::make_shared<GlobalErrorHandler>(objectMapper);
-    }());
-
-    OATPP_CREATE_COMPONENT(std::shared_ptr<oatpp::network::ConnectionHandler>, serverConnectionHandler)([] {
-        OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
-        OATPP_COMPONENT(std::shared_ptr<oatpp::async::Executor>, executor);
-        OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::handler::ErrorHandler>, errorHandler);
-        auto connectionHandler = oatpp::web::server::AsyncHttpConnectionHandler::createShared(router, executor);
+        auto connectionHandler = oatpp::web::server::AsyncHttpConnectionHandler::createShared(httpRouter, executor);
         connectionHandler->setErrorHandler(errorHandler);
-        return connectionHandler;
-    }());
+        serverConnectionHandler = connectionHandler;
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<AudioWorker>, audioWorker)([] {
-        return std::make_shared<AudioWorker>();
-    }());
+        audioWorker = std::make_shared<AudioWorker>();
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<AudioService>, audioService)([] {
-        OATPP_COMPONENT(std::shared_ptr<AudioWorker>, worker);
-        return std::make_shared<AudioService>(worker);
-    }());
+        audioService = std::make_shared<AudioService>(audioWorker);
+    }
     
 };
 

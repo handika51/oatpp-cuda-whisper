@@ -29,8 +29,8 @@ private:
     std::shared_ptr<AudioService> m_audioService;
 
 public:
-    MyController(OATPP_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, objectMapper),
-                 OATPP_COMPONENT(std::shared_ptr<AudioService>, audioService))
+    MyController(const std::shared_ptr<oatpp::data::mapping::ObjectMapper>& objectMapper,
+                 const std::shared_ptr<AudioService>& audioService)
         : oatpp::web::server::api::ApiController(objectMapper)
         , m_audioService(audioService) 
     {}

@@ -6,7 +6,9 @@
 
 #include "oatpp/web/server/handler/ErrorHandler.hpp"
 #include "oatpp/web/protocol/http/outgoing/ResponseFactory.hpp"
+#include "oatpp/web/protocol/http/outgoing/BufferBody.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
+#include "oatpp/core/data/stream/BufferStream.hpp"
 
 namespace app {
 
@@ -22,6 +24,15 @@ using Headers = oatpp::web::protocol::http::Headers;
 class GlobalErrorHandler : public oatpp::web::server::handler::ErrorHandler {
 private:
     std::shared_ptr<oatpp::data::mapping::ObjectMapper> m_objectMapper;
+
+    std::shared_ptr<OutgoingResponse> createJsonResponse(const Status& status, const oatpp::Void& dto) {
+        auto stream = std::make_shared<oatpp::data::stream::BufferOutputStream>();
+        m_objectMapper->write(stream.get(), dto);
+        auto response = OutgoingResponse::createShared(status, oatpp::web::protocol::http::outgoing::BufferBody::createShared(stream->toString()));
+        response->putHeader(oatpp::web::protocol::http::Header::CONTENT_TYPE, "application/json");
+        return response;
+    }
+
 public:
     GlobalErrorHandler(const std::shared_ptr<oatpp::data::mapping::ObjectMapper>& objectMapper)
         : m_objectMapper(objectMapper) {}
@@ -30,7 +41,7 @@ public:
         auto errorDto = ErrorResponseDto::createShared();
         errorDto->status_code = status.code;
         errorDto->error = message;
-        return ResponseFactory::createResponse(status, errorDto, m_objectMapper);
+        return createJsonResponse(status, errorDto);
     }
 
     std::shared_ptr<OutgoingResponse> handleError(const std::exception_ptr& exceptionPtr) override {
@@ -41,20 +52,24 @@ public:
         } catch (const AudioProcessingException& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 500;
-             errorDto->error = "Audio Processing Error: " + oatpp::String(e.what());
-             return ResponseFactory::createResponse(Status::CODE_500, errorDto, m_objectMapper);
+             std::string msg = "Audio Processing Error: ";
+             msg += e.what();
+             errorDto->error = msg.c_str();
+             return createJsonResponse(Status::CODE_500, errorDto);
         } catch (const ValidationException& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 400;
-             errorDto->error = "Validation Error: " + oatpp::String(e.what());
-             return ResponseFactory::createResponse(Status::CODE_400, errorDto, m_objectMapper);
+             std::string msg = "Validation Error: ";
+             msg += e.what();
+             errorDto->error = msg.c_str();
+             return createJsonResponse(Status::CODE_400, errorDto);
         } catch (const std::exception& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 500;
              // Log the actual error for internal debugging, but return a generic message to the client
              // OATPP_LOGE("GlobalErrorHandler", "Internal Server Error: %s", e.what()); // Assuming a logging mechanism exists
              errorDto->error = "Internal Server Error";
-             return ResponseFactory::createResponse(Status::CODE_500, errorDto, m_objectMapper);
+             return createJsonResponse(Status::CODE_500, errorDto);
         } catch (...) {
              return handleError(Status::CODE_500, "Unknown Error", {});
         }
