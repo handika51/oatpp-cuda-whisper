@@ -52,6 +52,7 @@ enable_testing()
 add_executable(my-tests
     test/tests.cpp
     test/MyControllerTest.cpp
+    test/AudioServiceTest.cpp
     test/errorhandler/GlobalErrorHandlerTest.cpp
     src/service/AudioService.cpp
     ${WORKER_SRC} # Use same worker as main build
@@ -74,8 +75,8 @@ if(ENABLE_COVERAGE)
 
         if(LCOV_PATH AND GENHTML_PATH)
             add_custom_target(coverage_report
-                COMMAND ${LCOV_PATH} --capture --directory . --output-file coverage.info
-                COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/test/*' '*/oatpp/*' --output-file coverage_filtered.info --ignore-errors unused
+                COMMAND ${LCOV_PATH} --capture --directory . --output-file coverage.info --ignore-errors mismatch
+                COMMAND ${LCOV_PATH} --remove coverage.info '/usr/*' '*/test/*' '*/oatpp/*' --output-file coverage_filtered.info --ignore-errors unused,mismatch
                 COMMAND ${GENHTML_PATH} coverage_filtered.info --output-directory coverage_report
                 COMMAND echo "Coverage report generated in coverage_report/index.html"
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}

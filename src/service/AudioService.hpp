@@ -16,6 +16,12 @@ public:
     AudioService(const std::shared_ptr<AudioWorker>& audioWorker);
     
     oatpp::String processAudio(const oatpp::String& message);
+
+    /**
+     * Placeholder to convert raw PCM 16-bit mono 16kHz audio to Mel Spectrogram features.
+     * Returns a list of features (flattened or structured).
+     */
+    oatpp::List<oatpp::Float32> extractFeatures(const oatpp::String& rawData);
 };
 
 }}

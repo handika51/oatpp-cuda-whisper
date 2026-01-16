@@ -102,10 +102,29 @@ void MyControllerTest::onRun() {
     reqDto->message = "Test Audio Data";
     auto responseProcess = client->doProcess(reqDto);
     OATPP_ASSERT(responseProcess->getStatusCode() == 200);
-    auto processResult = responseProcess->template readBodyToDto<oatpp::Object<app::dto::BaseResponseDto<oatpp::Object<app::dto::ProcessResult>>>>(component.apiObjectMapper.getObject());
-    OATPP_ASSERT(processResult);
-    OATPP_ASSERT(processResult->is_success);
-    OATPP_ASSERT(processResult->result->transcript == "Test Audio Data"); // Mock echoes the message
+    auto processResponse = responseProcess->template readBodyToDto<oatpp::Object<app::dto::ProcessResponseDto>>(component.apiObjectMapper.getObject());
+    OATPP_ASSERT(processResponse);
+    OATPP_ASSERT(processResponse->result == "Test Audio Data"); // Mock echoes the message
+
+    // /audio/stream
+    // Mock logic requires > 400 samples (800 bytes). Let's send 1000 bytes.
+    std::string rawAudio(1000, 'a'); 
+    oatpp::String audioData(rawAudio.c_str(), rawAudio.size());
+    
+    auto responseAudio = client->streamAudio(audioData);
+    OATPP_ASSERT(responseAudio->getStatusCode() == 200);
+    auto featureDto = responseAudio->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper.getObject());
+    OATPP_ASSERT(featureDto);
+    OATPP_ASSERT(featureDto->sample_count == 500);
+    OATPP_ASSERT(featureDto->features->size() > 0);
+
+    // /audio/stream - Empty Body
+    auto responseAudioEmpty = client->streamAudio("");
+    OATPP_ASSERT(responseAudioEmpty->getStatusCode() == 200);
+    auto featureDtoEmpty = responseAudioEmpty->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper.getObject());
+    OATPP_ASSERT(featureDtoEmpty);
+    OATPP_ASSERT(featureDtoEmpty->sample_count == 0);
+    OATPP_ASSERT(featureDtoEmpty->features->size() == 0);
 
     // 7. Cleanup
     

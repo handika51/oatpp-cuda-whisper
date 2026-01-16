@@ -15,14 +15,7 @@ class ProcessRequestDto : public oatpp::DTO {
 
 class ProcessResponseDto : public oatpp::DTO {
     DTO_INIT(ProcessResponseDto, DTO)
-    DTO_FIELD(Int32, status_code);
-    DTO_FIELD(String, message);
     DTO_FIELD(String, result);
-};
-
-class ProcessResult : public oatpp::DTO {
-    DTO_INIT(ProcessResult, DTO)
-    DTO_FIELD(String, transcript);
 };
 
 #include OATPP_CODEGEN_END(DTO)

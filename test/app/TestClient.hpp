@@ -6,6 +6,7 @@
 #include "dto/ProcessDto.hpp"
 #include "dto/MessageDto.hpp"
 #include "dto/BaseResponseDto.hpp"
+#include "dto/AudioFeatureDto.hpp"
 
 namespace app { namespace test {
 
@@ -17,6 +18,8 @@ class TestClient : public oatpp::web::client::ApiClient {
     API_CALL("GET", "/hello", doHello)
     
     API_CALL("POST", "/process", doProcess, BODY_DTO(oatpp::Object<app::dto::ProcessRequestDto>, body))
+
+    API_CALL("POST", "/audio/stream", streamAudio, BODY_STRING(String, body))
 };
 
 #include OATPP_CODEGEN_END(ApiClient)
