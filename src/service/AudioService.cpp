@@ -1,66 +1,85 @@
 #include "AudioService.hpp"
 #include "exception/AppExceptions.hpp"
 #include <vector>
+#include <cstring>
+#include <iostream>
+#include <algorithm>
 
 namespace app { namespace service {
 
 using namespace app::worker;
 using namespace app::exception;
 
-AudioService::AudioService(const std::shared_ptr<AudioWorker>& audioWorker)
-    : m_audioWorker(audioWorker)
+AudioService::AudioService(const std::shared_ptr<WorkerManager>& workerManager)
+    : m_workerManager(workerManager)
 {}
 
 oatpp::String AudioService::processAudio(const oatpp::String& message) {
-    std::vector<float> dummyInput(100, 0.0f); 
-    std::vector<float> melOutput;
+    if(!message) return nullptr;
+
+    ReqSlot req;
+    req.type = TASK_TEXT_PROCESS;
+    // Copy message
+    size_t len = message->size();
+    if (len >= TEXT_CHUNK_SIZE) {
+        len = TEXT_CHUNK_SIZE - 1;
+    }
+    std::memcpy(req.text_data, message->c_str(), len);
+    req.text_data[len] = '\0';
+    req.len = (uint32_t)len;
+
+    auto future = m_workerManager->submitTask(req);
     
-    m_audioWorker->computeMelSpectrogram(dummyInput, melOutput);
-    
-    return message;
+    // Block until result
+    try {
+        RespSlot resp = future.get();
+        if (resp.status_code != 0) {
+             throw std::runtime_error("Worker returned error code " + std::to_string(resp.status_code));
+        }
+        return oatpp::String(resp.text_result, resp.len);
+    } catch (const std::exception& e) {
+        OATPP_LOGE("AudioService", "Error processing text: %s", e.what());
+        throw;
+    }
 }
 
 oatpp::List<oatpp::Float32> AudioService::extractFeatures(const oatpp::String& rawData) {
     auto result = oatpp::List<oatpp::Float32>::createShared();
     
-    // Check if data is valid (16-bit = 2 bytes)
     if (!rawData || rawData->size() % 2 != 0) {
-        return result; // Return empty or throw exception
+        return result; 
     }
 
-    const int16_t* samples = reinterpret_cast<const int16_t*>(rawData->data());
     size_t sampleCount = rawData->size() / 2;
+    if (sampleCount > AUDIO_CHUNK_SIZE) {
+         // Truncate for MVP
+         sampleCount = AUDIO_CHUNK_SIZE;
+    }
 
-    // Placeholder Logic:
-    // Whisper typically uses 25ms window (400 samples @ 16kHz)
-    // with 10ms stride (160 samples @ 16kHz).
-    // It produces 80 mel-frequency bins.
+    ReqSlot req;
+    req.type = TASK_AUDIO_PROCESS;
+    req.audio.sample_rate = 16000;
+    req.audio.num_samples = (uint32_t)sampleCount;
     
-    size_t frameSize = 400; 
-    size_t step = 160;      
-    size_t n_mels = 80;
+    const int16_t* pcm = reinterpret_cast<const int16_t*>(rawData->data());
+    for(size_t i=0; i<sampleCount; ++i) {
+        req.audio.audio_data[i] = pcm[i] / 32768.0f;
+    }
 
-    for (size_t i = 0; i + frameSize < sampleCount; i += step) {
-        // For a real implementation, you would:
-        // 1. Apply Hann window
-        // 2. Compute FFT
-        // 3. Apply Mel filterbank
-        // 4. Logarithm
-        
-        // HERE: We just simulate by pushing 80 dummy values (e.g. 0.0 to 1.0)
-        // derived from the signal energy to allow verification of processing.
-        
-        float energy = 0.0f;
-        for (size_t j = 0; j < frameSize; ++j) {
-            float val = samples[i+j] / 32768.0f; 
-            energy += val * val;
+    auto future = m_workerManager->submitTask(req);
+    
+    try {
+        RespSlot resp = future.get();
+        if (resp.status_code != 0) {
+            throw std::runtime_error("Worker returned error code " + std::to_string(resp.status_code));
         }
-        energy /= frameSize;
 
-        // Populate 80 bins with this energy value (mock)
-        for(size_t k=0; k < n_mels; ++k) {
-            result->push_back(energy);
+        for(size_t i=0; i<resp.len; ++i) {
+            result->push_back(resp.mel_features[i]);
         }
+    } catch (const std::exception& e) {
+         OATPP_LOGE("AudioService", "Error processing audio: %s", e.what());
+         throw;
     }
     
     return result;

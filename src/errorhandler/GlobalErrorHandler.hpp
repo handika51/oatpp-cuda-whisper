@@ -7,7 +7,9 @@
 #include "oatpp/web/server/handler/ErrorHandler.hpp"
 #include "oatpp/web/protocol/http/outgoing/ResponseFactory.hpp"
 #include "oatpp/web/protocol/http/outgoing/BufferBody.hpp"
+#include "oatpp/web/protocol/http/outgoing/BufferBody.hpp"
 #include "oatpp/parser/json/mapping/ObjectMapper.hpp"
+#include "oatpp/core/data/stream/BufferStream.hpp"
 #include "oatpp/core/data/stream/BufferStream.hpp"
 
 namespace app {
@@ -26,8 +28,17 @@ private:
     std::shared_ptr<oatpp::data::mapping::ObjectMapper> m_objectMapper;
 
     std::shared_ptr<OutgoingResponse> createJsonResponse(const Status& status, const oatpp::Void& dto) {
+        if (!m_objectMapper) {
+             return ResponseFactory::createResponse(status, "Internal Server Error (No Mapper)");
+        }
+        
         auto stream = std::make_shared<oatpp::data::stream::BufferOutputStream>();
-        m_objectMapper->write(stream.get(), dto);
+        try {
+            m_objectMapper->write(stream.get(), dto);
+        } catch (...) {
+             return ResponseFactory::createResponse(Status::CODE_500, "Serialization Error");
+        }
+        
         auto response = OutgoingResponse::createShared(status, oatpp::web::protocol::http::outgoing::BufferBody::createShared(stream->toString()));
         response->putHeader(oatpp::web::protocol::http::Header::CONTENT_TYPE, "application/json");
         return response;
@@ -53,14 +64,14 @@ public:
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 500;
              std::string msg = "Audio Processing Error: ";
-             msg += e.what();
+             if(e.what()) msg += e.what();
              errorDto->error = msg.c_str();
              return createJsonResponse(Status::CODE_500, errorDto);
         } catch (const ValidationException& e) {
              auto errorDto = ErrorResponseDto::createShared();
              errorDto->status_code = 400;
              std::string msg = "Validation Error: ";
-             msg += e.what();
+             if(e.what()) msg += e.what();
              errorDto->error = msg.c_str();
              return createJsonResponse(Status::CODE_400, errorDto);
         } catch (const std::exception& e) {

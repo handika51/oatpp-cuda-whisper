@@ -10,6 +10,7 @@
 #include "oatpp/core/async/Executor.hpp"
 
 #include "worker/Bridge.hpp"
+#include "worker/WorkerManager.hpp"
 #include "service/AudioService.hpp"
 #include "errorhandler/GlobalErrorHandler.hpp"
 #include "AppConfig.hpp"
@@ -61,13 +62,13 @@ public:
         return connectionHandler;
     }());
 
-    OATPP_CREATE_COMPONENT(std::shared_ptr<AudioWorker>, audioWorker)([] {
-        return std::make_shared<AudioWorker>();
+    OATPP_CREATE_COMPONENT(std::shared_ptr<WorkerManager>, workerManager)([] {
+        return std::make_shared<WorkerManager>();
     }());
 
     OATPP_CREATE_COMPONENT(std::shared_ptr<AudioService>, audioService)([] {
-        OATPP_COMPONENT(std::shared_ptr<AudioWorker>, worker);
-        return std::make_shared<AudioService>(worker);
+        OATPP_COMPONENT(std::shared_ptr<WorkerManager>, manager);
+        return std::make_shared<AudioService>(manager);
     }());
     
 };

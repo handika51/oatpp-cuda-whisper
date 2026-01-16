@@ -1,11 +1,20 @@
 # oatpp-cuda-whisper
 
-This project is an Oat++ microservice designed to demonstrate speech-to-text functionality, potentially leveraging CUDA for GPU acceleration. It includes a CPU mock worker and a GPU worker, suggesting it can operate in different modes depending on the availability of CUDA.
+This project is an Oat++ microservice designed to demonstrate speech-to-text functionality, leveraging a shared memory worker architecture to potentially use CUDA for GPU acceleration. It includes a CPU mock worker and a GPU worker, allowing operation in different modes depending on the availability of CUDA.
 
 ## Prerequisites
 
 *   Docker and Docker Compose
 *   A C++ development environment (CMake, make, C++ compiler) if building locally outside of Docker.
+
+## Architecture
+
+The system uses a **Split-Process Architecture** where the HTTP server and the audio processing workers run as separate processes, communicating via POSIX **Shared Memory (IPC)** and Semaphores.
+
+*   **Server Process:** Handles HTTP requests, validation, and dispatches tasks to the Request Ring Buffer in shared memory.
+*   **Worker Processes:** Poll the shared memory for tasks (Text or Audio), process them (potentially using CUDA), and write results back to the Response Ring Buffer.
+
+This design ensures that heavy CUDA initialization or crashes in a worker do not directly bring down the HTTP server.
 
 ## Building and Running with Docker Compose
 
@@ -71,7 +80,7 @@ curl http://localhost:8000/hello
 }
 ```
 
-### Process Audio Endpoint
+### Process Text Endpoint
 
 *   **URL:** `/process`
 *   **Method:** `POST`
@@ -79,7 +88,7 @@ curl http://localhost:8000/hello
 *   **Body:**
     ```json
     {
-      "message": "Audio data simulation"
+      "message": "Text to be processed"
     }
     ```
 
@@ -91,7 +100,33 @@ curl http://localhost:8000/hello
   "message": "success",
   "duration": "500.20ms",
   "result": {
-    "transcript": "Audio data simulation"
+    "result": "dessecorp eb ot txeT" // Example processing (reverse string)
+  }
+}
+```
+
+### Audio Stream Endpoint
+
+*   **URL:** `/audio/stream`
+*   **Method:** `POST`
+*   **Content-Type:** `application/octet-stream`
+*   **Body:** Raw PCM 16-bit mono 16kHz audio data.
+
+**Example Request:**
+```bash
+# Send binary audio data
+curl -X POST --data-binary "@test_audio.raw" http://localhost:8000/audio/stream
+```
+
+**Example Response:**
+```json
+{
+  "code": 200,
+  "is_success": true,
+  "message": "success",
+  "result": {
+    "sample_count": 16000,
+    "features": [ ... 80-channel mel spectrogram data ... ]
   }
 }
 ```
@@ -175,7 +210,7 @@ The report will be generated in `build_coverage/coverage_report/index.html`.
 
 The project follows a modular Clean Architecture approach:
 
-*   `src/App.cpp`: Main application entry point.
+*   `src/App.cpp`: Main application entry point (Server & Worker launcher).
 *   `src/AppConfig.hpp`: Configuration component.
 *   `src/AppComponent.hpp`: Dependency Injection container & wiring.
 *   `src/controller/`: REST API Controllers.
@@ -184,8 +219,12 @@ The project follows a modular Clean Architecture approach:
     *   `BaseResponseDto.hpp`: Standard API response wrapper.
     *   `MessageDto.hpp`, `ProcessDto.hpp`, `ErrorDto.hpp`.
 *   `src/service/`: Business Logic Layer.
-    *   `AudioService.cpp`: Handles audio processing logic.
-*   `src/worker/`: Infrastructure/Hardware Layer.
+    *   `AudioService.cpp`: Dispatches tasks to `WorkerManager`.
+*   `src/worker/`: Infrastructure/Hardware Layer & IPC.
+    *   `WorkerManager.hpp`: Manages worker processes and task futures.
+    *   `WorkerMain.cpp`: Worker process entry point and logic.
+    *   `IPC.hpp`: Shared memory and semaphore wrapper.
+    *   `SharedMemoryStructs.hpp`: Definition of Ring Buffers and Task Slots.
     *   `CpuMock.cpp`: Mock implementation for development.
     *   `GpuWorker.cpp`: CUDA implementation for production.
 *   `src/validator/`: Input validation helpers.
@@ -193,9 +232,8 @@ The project follows a modular Clean Architecture approach:
 *   `src/exception/`: Custom application exceptions.
 *   `src/utils/`: Utilities (e.g., ExecutionTimer).
 *   `test/`: Unit and Integration tests.
-    *   `MyControllerTest.cpp`: Integration tests for API endpoints.
+    *   `AudioServiceTest.cpp`: Tests service logic and worker IPC.
     *   `tests.cpp`: Test runner entry point.
-    *   `TestAppComponent.hpp`: Test-specific DI container.
 *   `Dockerfile`: Docker build definition (Multi-stage).
 *   `docker-compose.yml`: Container orchestration config.
 *   `CMakeLists.txt`: Build configuration.
