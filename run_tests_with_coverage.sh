@@ -1,26 +1,28 @@
 #!/bin/bash
 set -e
 
-# Define build directory
-BUILD_DIR="build_coverage"
+# Define build directory using absolute path
+BASE_DIR=$(pwd)
+BUILD_DIR="$BASE_DIR/build_coverage"
 
-echo "Current directory: $(pwd)"
+echo "Base directory: $BASE_DIR"
+echo "Build directory: $BUILD_DIR"
 
 # Clean previous build if requested
 if [ "$1" = "clean" ]; then
     echo "Cleaning up previous build..."
-    rm -rf $BUILD_DIR
+    rm -rf "$BUILD_DIR"
 fi
 
 # Create build directory
-mkdir -p $BUILD_DIR
-cd $BUILD_DIR
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
 echo "Changed to directory: $(pwd)"
 
 # Configure CMake with Coverage Enabled
 echo "Configuring CMake with Coverage..."
-cmake -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DLCOV_PATH=/usr/bin/lcov -DGENHTML_PATH=/usr/bin/genhtml /app
+cmake -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DLCOV_PATH=/usr/bin/lcov -DGENHTML_PATH=/usr/bin/genhtml "$BASE_DIR"
 
 # Build Tests
 echo "Building Tests..."

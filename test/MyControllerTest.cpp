@@ -59,81 +59,83 @@ struct ServerThreadGuard {
 
 void MyControllerTest::onRun() {
     
-    // 1. Initialize Components
-    TestAppComponent component; 
-    
-    // 2. Create Virtual Interface
-    auto interface = oatpp::network::virtual_::Interface::obtainShared("virtual-test-interface");
+    { // Scope block to force destruction of components before function exit
+        
+        // 1. Initialize Components
+        TestAppComponent component; 
+        
+        // 2. Create Virtual Interface
+        auto interface = oatpp::network::virtual_::Interface::obtainShared("virtual-test-interface");
 
-    // 3. Override Connection Provider for Virtual Interface
-    auto connectionProvider = oatpp::network::virtual_::server::ConnectionProvider::createShared(interface);
-    
-    // Get Router & Handler from component
-    OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
-    OATPP_COMPONENT(std::shared_ptr<oatpp::network::ConnectionHandler>, connectionHandler);
-    
-    auto myController = std::make_shared<app::controller::MyController>();
-    router->addController(myController);
+        // 3. Override Connection Provider for Virtual Interface
+        auto connectionProvider = oatpp::network::virtual_::server::ConnectionProvider::createShared(interface);
+        
+        // Create MyController with manual dependency injection
+        auto myController = std::make_shared<app::controller::MyController>(component.apiObjectMapper, component.audioService);
+        component.httpRouter->addController(myController);
 
-    // 4. Create Server
-    oatpp::network::Server server(connectionProvider, connectionHandler);
-    
-    // 5. Create Client
-    auto clientConnectionProvider = oatpp::network::virtual_::client::ConnectionProvider::createShared(interface);
-    
-    // RAII Guard to ensure server stops and thread joins
-    ServerThreadGuard serverGuard(&server, connectionProvider, clientConnectionProvider);
-    
-    auto requestExecutor = oatpp::web::client::HttpRequestExecutor::createShared(clientConnectionProvider);
-    auto client = TestClient::createShared(requestExecutor, component.apiObjectMapper.getObject());
-    
-    // 6. Execute Tests
-    
-    // /hello
-    auto response = client->doHello();
-    OATPP_ASSERT(response->getStatusCode() == 200);
-    auto message = response->template readBodyToDto<oatpp::Object<app::dto::BaseResponseDto<oatpp::Object<app::dto::MessageDto>>>>(component.apiObjectMapper.getObject());
-    OATPP_ASSERT(message);
-    OATPP_ASSERT(message->code == 200);
-    OATPP_ASSERT(message->result->message == "Hello, World!");
+        // 4. Create Server
+        oatpp::network::Server server(connectionProvider, component.serverConnectionHandler);
+        
+        // 5. Create Client
+        auto clientConnectionProvider = oatpp::network::virtual_::client::ConnectionProvider::createShared(interface);
+        
+        // RAII Guard to ensure server stops and thread joins
+        ServerThreadGuard serverGuard(&server, connectionProvider, clientConnectionProvider);
+        
+        auto requestExecutor = oatpp::web::client::HttpRequestExecutor::createShared(clientConnectionProvider);
+        auto client = TestClient::createShared(requestExecutor, component.apiObjectMapper);
+        
+        // 6. Execute Tests
+        
+        // /hello
+        auto response = client->doHello();
+        OATPP_ASSERT(response->getStatusCode() == 200);
+        auto message = response->template readBodyToDto<oatpp::Object<app::dto::BaseResponseDto<oatpp::Object<app::dto::MessageDto>>>>(component.apiObjectMapper);
+        OATPP_ASSERT(message);
+        OATPP_ASSERT(message->code == 200);
+        OATPP_ASSERT(message->result->message == "Hello, World!");
 
-    // /process
-    auto reqDto = app::dto::ProcessRequestDto::createShared();
-    reqDto->message = "Test Audio Data";
-    auto responseProcess = client->doProcess(reqDto);
-    OATPP_ASSERT(responseProcess->getStatusCode() == 200);
-    auto processResponse = responseProcess->template readBodyToDto<oatpp::Object<app::dto::ProcessResponseDto>>(component.apiObjectMapper.getObject());
-    OATPP_ASSERT(processResponse);
-    OATPP_ASSERT(processResponse->result == "Test Audio Data"); // Mock echoes the message
+        // /process
+        auto reqDto = app::dto::ProcessRequestDto::createShared();
+        reqDto->message = "Test Audio Data";
+        auto responseProcess = client->doProcess(reqDto);
+        OATPP_ASSERT(responseProcess->getStatusCode() == 200);
+        auto processResponse = responseProcess->template readBodyToDto<oatpp::Object<app::dto::ProcessResponseDto>>(component.apiObjectMapper);
+        OATPP_ASSERT(processResponse);
+        OATPP_ASSERT(processResponse->result == "Test Audio Data"); // Mock echoes the message
 
-    // /audio/stream
-    // Mock logic requires > 400 samples (800 bytes). Let's send 1000 bytes.
-    std::string rawAudio(1000, 'a'); 
-    oatpp::String audioData(rawAudio.c_str(), rawAudio.size());
-    
-    auto responseAudio = client->streamAudio(audioData);
-    OATPP_ASSERT(responseAudio->getStatusCode() == 200);
-    auto featureDto = responseAudio->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper.getObject());
-    OATPP_ASSERT(featureDto);
-    OATPP_ASSERT(featureDto->sample_count == 500);
-    OATPP_ASSERT(featureDto->features->size() > 0);
+        // /audio/stream
+        // Mock logic requires > 400 samples (800 bytes). Let's send 1000 bytes.
+        std::string rawAudio(1000, 'a'); 
+        oatpp::String audioData(rawAudio.c_str(), rawAudio.size());
+        
+        auto responseAudio = client->streamAudio(audioData);
+        OATPP_ASSERT(responseAudio->getStatusCode() == 200);
+        auto featureDto = responseAudio->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper);
+        OATPP_ASSERT(featureDto);
+        OATPP_ASSERT(featureDto->sample_count == 500);
+        OATPP_ASSERT(featureDto->features->size() > 0);
 
-    // /audio/stream - Empty Body
-    auto responseAudioEmpty = client->streamAudio("");
-    OATPP_ASSERT(responseAudioEmpty->getStatusCode() == 200);
-    auto featureDtoEmpty = responseAudioEmpty->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper.getObject());
-    OATPP_ASSERT(featureDtoEmpty);
-    OATPP_ASSERT(featureDtoEmpty->sample_count == 0);
-    OATPP_ASSERT(featureDtoEmpty->features->size() == 0);
+        // /audio/stream - Empty Body
+        auto responseAudioEmpty = client->streamAudio("");
+        OATPP_ASSERT(responseAudioEmpty->getStatusCode() == 200);
+        auto featureDtoEmpty = responseAudioEmpty->template readBodyToDto<oatpp::Object<app::dto::AudioFeatureDto>>(component.apiObjectMapper);
+        OATPP_ASSERT(featureDtoEmpty);
+        OATPP_ASSERT(featureDtoEmpty->sample_count == 0);
+        OATPP_ASSERT(featureDtoEmpty->features->size() == 0);
 
-    // 7. Cleanup
-    
-    // Allow threads to finish a bit gracefully (optional)
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    
-    OATPP_LOGD("MyControllerTest", "Tests finished. Explicitly stopping executor...");
-    component.executor.getObject()->stop();
-    component.executor.getObject()->join();
+        // 7. Cleanup
+        
+        // Allow threads to finish a bit gracefully (optional)
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        
+        OATPP_LOGD("MyControllerTest", "Tests finished. Explicitly stopping executor...");
+        component.executor->stop();
+        component.executor->join();
+        
+    } // End of inner scope - everything destroyed here
+
     OATPP_LOGD("MyControllerTest", "Executor stopped. Exiting onRun...");
 }
 

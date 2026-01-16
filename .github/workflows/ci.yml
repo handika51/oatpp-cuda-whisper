@@ -1,0 +1,59 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake git pkg-config lcov wget
+        
+    - name: Cache Oat++
+      id: cache-oatpp
+      uses: actions/cache@v4
+      with:
+        path: oatpp
+        key: ${{ runner.os }}-oatpp-1.3.0-latest
+
+    - name: Install Oat++
+      run: |
+        if [ ! -d "oatpp" ]; then
+          git clone --branch 1.3.0-latest https://github.com/oatpp/oatpp.git
+        fi
+        
+        cd oatpp
+        if [ ! -d "build" ]; then
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOATPP_INSTALL=ON ..
+          make -j$(nproc)
+        else
+          cd build
+        fi
+        
+        sudo make install
+
+    - name: Configure CMake
+      run: cmake -DENABLE_COVERAGE=ON -DENABLE_CUDA=OFF -B build -S .
+
+    - name: Build
+      run: cmake --build build --target my-tests
+
+    - name: Run Tests
+      working-directory: build
+      run: ./my-tests
+
+    - name: Generate Coverage Report
+      working-directory: build
+      # Just verify we can generate it; in a real scenario we might upload artifact or use codecov
+      run: make coverage_report 

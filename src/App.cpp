@@ -11,7 +11,10 @@ void run() {
 
     OATPP_COMPONENT(std::shared_ptr<oatpp::web::server::HttpRouter>, router);
 
-    auto myController = std::make_shared<MyController>();
+    OATPP_COMPONENT(std::shared_ptr<oatpp::data::mapping::ObjectMapper>, objectMapper);
+    OATPP_COMPONENT(std::shared_ptr<app::service::AudioService>, audioService);
+
+    auto myController = std::make_shared<MyController>(objectMapper, audioService);
     router->addController(myController);
 
     OATPP_COMPONENT(std::shared_ptr<oatpp::network::ConnectionHandler>, connectionHandler);
