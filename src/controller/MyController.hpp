@@ -5,6 +5,7 @@
 #include "dto/ProcessDto.hpp"
 #include "dto/ErrorDto.hpp"
 #include "dto/BaseResponseDto.hpp"
+#include "dto/AudioFeatureDto.hpp"
 
 #include "oatpp/web/server/api/ApiController.hpp"
 #include "oatpp/core/macro/component.hpp"
@@ -67,13 +68,37 @@ public:
             
             auto resultMessage = myController->m_audioService->processAudio(requestDto->message);
 
-            auto resultPayload = ProcessResult::createShared();
-            resultPayload->transcript = resultMessage;
+            auto responseDto = ProcessResponseDto::createShared();
+            responseDto->result = resultMessage;
 
-            auto response = BaseResponseDto<oatpp::Object<ProcessResult>>::createSuccess(resultPayload, "success", timer.getElapsedMicros());
-            return _return(controller->createDtoResponse(Status::CODE_200, response));
+            return _return(controller->createDtoResponse(Status::CODE_200, responseDto));
         }
     };
+
+    ENDPOINT_ASYNC("POST", "/audio/stream", StreamAudio) {
+        ENDPOINT_ASYNC_INIT(StreamAudio)
+        
+        ExecutionTimer timer;
+
+        Action act() override {
+            // Read the binary body into a string (Oat++ handles binary safely)
+            return request->readBodyToStringAsync().callbackTo(&StreamAudio::onBodyRead);
+        }
+
+        Action onBodyRead(const oatpp::String& body) {
+            auto myController = static_cast<MyController*>(controller);
+            
+            // Process the binary audio data
+            auto features = myController->m_audioService->extractFeatures(body);
+            
+            auto resultDto = AudioFeatureDto::createShared();
+            resultDto->features = features;
+            resultDto->sample_count = body->size() / 2; // 16-bit = 2 bytes
+
+            return _return(controller->createDtoResponse(Status::CODE_200, resultDto));
+        }
+    };
+    
 };
 
 #include OATPP_CODEGEN_END(ApiController)

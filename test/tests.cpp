@@ -1,14 +1,17 @@
 #include "MyControllerTest.hpp"
-#include "errorhandler/GlobalErrorHandlerTest.hpp" 
-#include "oatpp/core/base/Environment.hpp"
+#include "AudioServiceTest.hpp"
+#include "errorhandler/GlobalErrorHandlerTest.hpp"
 #include <iostream>
+
+void runTests() {
+    OATPP_RUN_TEST(app::test::MyControllerTest);
+    OATPP_RUN_TEST(app::test::AudioServiceTest);
+    OATPP_RUN_TEST(app::test::errorhandler::GlobalErrorHandlerTest);
+}
 
 int main() {
     oatpp::base::Environment::init();
-    
-    app::test::MyControllerTest().run();
-    app::test::errorhandler::GlobalErrorHandlerTest().run();
-    
+    runTests();
     oatpp::base::Environment::destroy();
     return 0;
 }
